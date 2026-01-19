@@ -1,10 +1,10 @@
 """
 Calendar Cog - Economic calendar and events
+Uses ! prefix commands (NOT slash commands)
 """
 import discord
-from discord import app_commands
 from discord.ext import commands, tasks
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, time
 import pytz
 import json
 import os
@@ -28,10 +28,65 @@ class CalendarCog(commands.Cog, name="Calendar"):
         self.bot = bot
         self.ct = pytz.timezone('America/Chicago')
         self.events = DEFAULT_EVENTS.copy()
+        # Start auto-posting task
+        self.weekly_calendar_post.start()
 
-    @app_commands.command(name="calendar", description="Show upcoming economic events")
-    @app_commands.describe(days="Number of days to look ahead (default: 7)")
-    async def calendar_command(self, interaction: discord.Interaction, days: int = 7):
+    def cog_unload(self):
+        self.weekly_calendar_post.cancel()
+
+    @tasks.loop(time=time(hour=6, minute=0, tzinfo=pytz.timezone('America/Chicago')))
+    async def weekly_calendar_post(self):
+        """Auto-post weekly calendar at 6:00 AM CT (Mondays only)"""
+        now = datetime.now(self.ct)
+        # Skip weekends
+        if now.weekday() >= 5:
+            return
+        # Only post on Mondays
+        if now.weekday() != 0:
+            return
+
+        channel = self.bot.get_channel(ECONOMIC_CALENDAR_CHANNEL)
+        if not channel:
+            return
+
+        cutoff = now + timedelta(days=7)
+        upcoming = []
+        for event in self.events:
+            try:
+                event_date = datetime.strptime(event['date'], '%Y-%m-%d')
+                event_date = self.ct.localize(event_date)
+                if now.date() <= event_date.date() <= cutoff.date():
+                    upcoming.append(event)
+            except:
+                continue
+
+        embed = discord.Embed(
+            title="Weekly Economic Calendar",
+            description=f"Week of {now.strftime('%B %d, %Y')}",
+            color=discord.Color.gold(),
+            timestamp=now
+        )
+
+        if upcoming:
+            for event in sorted(upcoming, key=lambda x: x['date']):
+                embed.add_field(
+                    name=f"[{event.get('impact', 'MED')}] {event['event']}",
+                    value=f"{event['date']} at {event.get('time', 'TBD')} CT\nForecast: {event.get('forecast', 'N/A')}",
+                    inline=False
+                )
+        else:
+            embed.description += "\n\n*No major economic events this week.*"
+
+        embed.set_footer(text="Calendar Cog | Trade carefully around high-impact events!")
+        await channel.send(embed=embed)
+
+    @weekly_calendar_post.before_loop
+    async def before_weekly_post(self):
+        await self.bot.wait_until_ready()
+
+    @commands.command(name="calendar", help="Show upcoming economic events. Usage: !calendar [days]")
+    async def calendar_command(self, ctx, days: int = 7):
+        """!calendar [days] - Show economic events for next N days"""
         now = datetime.now(self.ct)
         cutoff = now + timedelta(days=days)
 
@@ -46,7 +101,7 @@ class CalendarCog(commands.Cog, name="Calendar"):
                 continue
 
         if not upcoming:
-            await interaction.response.send_message(f"No economic events in the next {days} days.")
+            await ctx.send(f"No economic events in the next {days} days.")
             return
 
         embed = discord.Embed(
@@ -56,45 +111,69 @@ class CalendarCog(commands.Cog, name="Calendar"):
         )
 
         for event in sorted(upcoming, key=lambda x: x['date']):
-            impact_emoji = "HIGH" if event.get('impact') == "HIGH" else "MED" if event.get('impact') == "MEDIUM" else "LOW"
             embed.add_field(
-                name=f"[{impact_emoji}] {event['event']}",
+                name=f"[{event.get('impact', 'MED')}] {event['event']}",
                 value=f"{event['date']} at {event.get('time', 'TBD')} CT\nForecast: {event.get('forecast', 'N/A')}",
                 inline=False
             )
 
-        await interaction.response.send_message(embed=embed)
+        embed.set_footer(text="Calendar Cog")
+        await ctx.send(embed=embed)
 
-    @app_commands.command(name="event-add", description="Add an economic event to the calendar")
-    @app_commands.describe(
-        date="Date (YYYY-MM-DD)",
-        time="Time in CT (HH:MM)",
-        event_name="Event name",
-        impact="Impact level (HIGH, MEDIUM, LOW)",
-        forecast="Forecast value (optional)"
-    )
-    async def event_add_command(
-        self,
-        interaction: discord.Interaction,
-        date: str,
-        time: str,
-        event_name: str,
-        impact: str = "HIGH",
-        forecast: str = "N/A"
-    ):
+    @commands.command(name="eventadd", help="Add economic event. Usage: !eventadd 2026-01-30 08:30 GDP HIGH 2.5%")
+    async def event_add_command(self, ctx, date: str = None, event_time: str = None, *, rest: str = None):
+        """!eventadd <date> <time> <event_name> [impact] [forecast]"""
+        if not all([date, event_time, rest]):
+            await ctx.send("**Usage:** `!eventadd <YYYY-MM-DD> <HH:MM> <event_name> [HIGH/MEDIUM/LOW] [forecast]`\n"
+                          "**Example:** `!eventadd 2026-01-30 08:30 GDP Report HIGH 2.5%`")
+            return
+
+        parts = rest.split()
+        impact = "HIGH"
+        forecast = "N/A"
+        event_name_parts = parts
+
+        if len(parts) >= 2:
+            if parts[-2].upper() in ["HIGH", "MEDIUM", "LOW"]:
+                impact = parts[-2].upper()
+                forecast = parts[-1]
+                event_name_parts = parts[:-2]
+            elif parts[-1].upper() in ["HIGH", "MEDIUM", "LOW"]:
+                impact = parts[-1].upper()
+                event_name_parts = parts[:-1]
+
+        event_name = " ".join(event_name_parts)
+
         new_event = {
             "date": date,
-            "time": time,
+            "time": event_time,
             "event": event_name,
-            "impact": impact.upper(),
+            "impact": impact,
             "forecast": forecast
         }
         self.events.append(new_event)
 
-        await interaction.response.send_message(f"Added: **{event_name}** on {date} at {time} CT")
+        await ctx.send(f"Added: **{event_name}** on {date} at {event_time} CT (Impact: {impact})")
 
-    @app_commands.command(name="post-calendar", description="Post the weekly calendar to the economic-calendar channel")
-    async def post_calendar_command(self, interaction: discord.Interaction):
+    @commands.command(name="eventremove", help="Remove an event by name. Usage: !eventremove GDP")
+    async def event_remove_command(self, ctx, *, event_name: str = None):
+        """!eventremove <event_name> - Remove an event"""
+        if not event_name:
+            await ctx.send("**Usage:** `!eventremove <event_name>`")
+            return
+
+        original_count = len(self.events)
+        self.events = [e for e in self.events if event_name.lower() not in e['event'].lower()]
+        removed_count = original_count - len(self.events)
+
+        if removed_count > 0:
+            await ctx.send(f"Removed {removed_count} event(s) matching '{event_name}'")
+        else:
+            await ctx.send(f"No events found matching '{event_name}'")
+
+    @commands.command(name="postcalendar", help="Post weekly calendar to #economic-calendar")
+    async def post_calendar_command(self, ctx):
+        """!postcalendar - Post weekly calendar to the economic calendar channel"""
         now = datetime.now(self.ct)
         cutoff = now + timedelta(days=7)
 
@@ -117,9 +196,8 @@ class CalendarCog(commands.Cog, name="Calendar"):
 
         if upcoming:
             for event in sorted(upcoming, key=lambda x: x['date']):
-                impact_emoji = "HIGH" if event.get('impact') == "HIGH" else "MED" if event.get('impact') == "MEDIUM" else "LOW"
                 embed.add_field(
-                    name=f"[{impact_emoji}] {event['event']}",
+                    name=f"[{event.get('impact', 'MED')}] {event['event']}",
                     value=f"{event['date']} at {event.get('time', 'TBD')} CT\nForecast: {event.get('forecast', 'N/A')}",
                     inline=False
                 )
@@ -129,11 +207,32 @@ class CalendarCog(commands.Cog, name="Calendar"):
         embed.set_footer(text="Trade carefully around high-impact events!")
 
         channel = self.bot.get_channel(ECONOMIC_CALENDAR_CHANNEL)
-        if channel:
+        if channel and channel.id != ctx.channel.id:
             await channel.send(embed=embed)
-            await interaction.response.send_message("Calendar posted!", ephemeral=True)
+            await ctx.send(f"Calendar posted to <#{ECONOMIC_CALENDAR_CHANNEL}>!")
         else:
-            await interaction.response.send_message(embed=embed)
+            await ctx.send(embed=embed)
+
+    @commands.command(name="eventlist", help="List all stored events")
+    async def event_list_command(self, ctx):
+        """!eventlist - List all events"""
+        if not self.events:
+            await ctx.send("No events stored.")
+            return
+
+        embed = discord.Embed(title="All Economic Events", color=discord.Color.blue())
+
+        for event in sorted(self.events, key=lambda x: x['date'])[:25]:
+            embed.add_field(
+                name=f"[{event.get('impact', 'MED')}] {event['event']}",
+                value=f"{event['date']} at {event.get('time', 'TBD')} CT",
+                inline=True
+            )
+
+        if len(self.events) > 25:
+            embed.set_footer(text=f"Showing 25 of {len(self.events)} events")
+
+        await ctx.send(embed=embed)
 
 async def setup(bot):
     await bot.add_cog(CalendarCog(bot))

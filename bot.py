@@ -2,15 +2,14 @@
 """
 JustTrades Combined Discord Bot
 All bots merged into one for Railway deployment
+Uses ! prefix commands (NOT slash commands)
 """
 import discord
-from discord import app_commands
-from discord.ext import commands, tasks
+from discord.ext import commands
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 import pytz
-import asyncio
 
 # Setup logging
 logging.basicConfig(
@@ -58,19 +57,13 @@ class JustTradesBot(commands.Bot):
     async def on_ready(self):
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Connected to {len(self.guilds)} guild(s)")
-
-        # Sync slash commands
-        try:
-            synced = await self.tree.sync()
-            logger.info(f"Synced {len(synced)} slash commands")
-        except Exception as e:
-            logger.error(f"Failed to sync commands: {e}")
+        logger.info("All commands use ! prefix")
 
         # Set bot status
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name="the markets | !help"
+                name="the markets | !bothelp"
             )
         )
 
@@ -81,42 +74,53 @@ async def bot_help(ctx):
     """Show all available commands"""
     embed = discord.Embed(
         title="JustTrades Bot Commands",
-        description="All-in-one trading Discord bot",
+        description="All-in-one trading Discord bot\n**All commands use `!` prefix**",
         color=discord.Color.gold()
     )
 
     embed.add_field(
         name="Market Data",
-        value="`!market` - Live futures prices\n`!price <symbol>` - Any symbol price\n`!bias <direction> <notes>` - Post daily bias",
+        value="`!market` - Live futures prices\n`!price <symbol>` - Any symbol price\n`!bias <direction> <notes>` - Post daily bias\n`!markethelp` - Market commands help",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Analysis",
+        value="`!setup <symbol> <long/short> <entry> <stop> <target>` - Chart setup\n`!levels <symbol> <S1> <R1>` - S/R levels\n`!dailybias` - AI daily bias with live data",
         inline=False
     )
 
     embed.add_field(
         name="Education",
-        value="`!define <term>` - Trading term definition\n`!terms` - List all terms\n`!tip` - Random trading tip",
+        value="`!define <term>` - Trading term definition\n`!terms` - List all terms\n`!tip` - Random trading tip\n`!eduhelp` - Education commands help",
         inline=False
     )
 
     embed.add_field(
         name="Trade Relay",
-        value="`!alert <symbol> <BUY/SELL> <entry> <stop> <target>` - Post trade alert\n`!close <symbol> <WIN/LOSS> <pnl>` - Post trade result\n`!update <symbol> <text>` - Trade update",
+        value="`!alert <symbol> <BUY/SELL> <entry> <stop> <target>` - Trade alert\n`!close <symbol> <WIN/LOSS> <pnl>` - Trade result\n`!update <symbol> <text>` - Trade update\n`!tradehelp` - Trade commands help",
         inline=False
     )
 
     embed.add_field(
-        name="Slash Commands",
-        value="`/setup` - Post chart setup\n`/levels` - Post S/R levels\n`/calendar` - Economic calendar\n`/event-add` - Add calendar event",
+        name="Calendar",
+        value="`!calendar [days]` - Economic calendar\n`!eventadd` - Add event\n`!eventlist` - List events\n`!postcalendar` - Post to channel",
         inline=False
     )
 
-    embed.set_footer(text="JustTrades Bot | Running on Railway")
+    embed.add_field(
+        name="Auto-Posting",
+        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Weekly Calendar:** Mondays 6:00 AM CT",
+        inline=False
+    )
+
+    embed.set_footer(text="JustTrades Bot | Railway Deployment | All ! prefix commands")
     await ctx.send(embed=embed)
 
 @bot.command(name="status")
 async def bot_status(ctx):
     """Show bot status"""
     now = datetime.now(bot.ct)
-    uptime = datetime.utcnow() - bot.user.created_at.replace(tzinfo=None)
 
     embed = discord.Embed(
         title="Bot Status",
@@ -126,7 +130,23 @@ async def bot_status(ctx):
     embed.add_field(name="Latency", value=f"{round(bot.latency * 1000)}ms", inline=True)
     embed.add_field(name="Guilds", value=str(len(bot.guilds)), inline=True)
     embed.add_field(name="Time (CT)", value=now.strftime("%I:%M %p"), inline=True)
+    embed.add_field(name="Prefix", value="`!`", inline=True)
     embed.set_footer(text="JustTrades Bot | Railway Deployment")
+
+    await ctx.send(embed=embed)
+
+@bot.command(name="channels")
+async def channels_command(ctx):
+    """Show configured channels"""
+    embed = discord.Embed(
+        title="Configured Channels",
+        color=discord.Color.blue()
+    )
+
+    for name, channel_id in CHANNELS.items():
+        channel = bot.get_channel(channel_id)
+        status = f"<#{channel_id}>" if channel else f"Not found ({channel_id})"
+        embed.add_field(name=name.replace('_', ' ').title(), value=status, inline=True)
 
     await ctx.send(embed=embed)
 
