@@ -104,13 +104,13 @@ async def bot_help(ctx):
 
     embed.add_field(
         name="Calendar",
-        value="`!calendar [days]` - Economic calendar\n`!eventadd` - Add event\n`!eventlist` - List events\n`!postcalendar` - Post to channel",
+        value="`!calendar` - Post Forex Factory USD calendar screenshot\n`!calendarhere` - Post calendar in current channel",
         inline=False
     )
 
     embed.add_field(
         name="Auto-Posting",
-        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Weekly Calendar:** Mondays 6:00 AM CT",
+        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Economic Calendar:** 6:00 AM CT (weekdays)",
         inline=False
     )
 
