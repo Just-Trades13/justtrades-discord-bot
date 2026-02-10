@@ -5,6 +5,7 @@ Uses ! prefix commands (NOT slash commands)
 import discord
 from discord.ext import commands, tasks
 from datetime import datetime, timedelta, time
+from zoneinfo import ZoneInfo
 import pytz
 import json
 import os
@@ -34,7 +35,7 @@ class CalendarCog(commands.Cog, name="Calendar"):
     def cog_unload(self):
         self.weekly_calendar_post.cancel()
 
-    @tasks.loop(time=time(hour=6, minute=0, tzinfo=pytz.timezone('America/Chicago')))
+    @tasks.loop(time=time(hour=6, minute=0, tzinfo=ZoneInfo('America/Chicago')))
     async def weekly_calendar_post(self):
         """Auto-post weekly calendar at 6:00 AM CT (Mondays only)"""
         now = datetime.now(self.ct)

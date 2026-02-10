@@ -5,6 +5,7 @@ Uses ! prefix commands (NOT slash commands)
 import discord
 from discord.ext import commands, tasks
 from datetime import datetime, time
+from zoneinfo import ZoneInfo
 import pytz
 import os
 
@@ -97,7 +98,7 @@ class AnalysisCog(commands.Cog, name="Analysis"):
                 return "BEARISH", discord.Color.red()
             return "NEUTRAL", discord.Color.gold()
 
-    @tasks.loop(time=time(hour=8, minute=30, tzinfo=pytz.timezone('America/Chicago')))
+    @tasks.loop(time=time(hour=8, minute=30, tzinfo=ZoneInfo('America/Chicago')))
     async def daily_bias_post(self):
         """Auto-post daily bias at 8:30 AM CT (weekdays only)"""
         now = datetime.now(self.ct)
