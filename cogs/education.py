@@ -372,12 +372,18 @@ class EducationCog(commands.Cog, name="Education"):
         embed.set_footer(text=f"Topic: {lesson['topic']} | Daily Trading Education")
         return embed
 
-    @commands.command(name="define", help="Define a trading term. Usage: !define support")
-    async def define_command(self, ctx, term: str = None):
-        """!define <term> - Get definition of a trading term"""
+    @commands.command(name="glossary", help="Trading glossary. Usage: !glossary or !glossary support")
+    async def glossary_command(self, ctx, term: str = None):
+        """!glossary [term] - Browse trading terms or look up a specific one"""
         if not term:
-            available = ", ".join(TRADING_TERMS.keys())
-            await ctx.send(f"Usage: `!define <term>`\n\n**Available terms:** {available}")
+            terms_list = "\n".join([f"**{key}** - {info['title']}" for key, info in TRADING_TERMS.items()])
+            embed = discord.Embed(
+                title="Trading Glossary",
+                description=f"Use `!glossary <term>` to learn more\n\n{terms_list}",
+                color=discord.Color.gold()
+            )
+            embed.set_footer(text="Type !glossary <term> for the full definition and example")
+            await ctx.send(embed=embed)
             return
 
         term_lower = term.lower().strip()
@@ -387,21 +393,21 @@ class EducationCog(commands.Cog, name="Education"):
             embed = discord.Embed(title=info['title'], color=discord.Color.blue())
             embed.add_field(name="Definition", value=info['definition'], inline=False)
             embed.add_field(name="Example", value=info['example'], inline=False)
+            embed.set_footer(text="Type !glossary to see all terms")
             await ctx.send(embed=embed)
         else:
             available = ", ".join(TRADING_TERMS.keys())
-            await ctx.send(f"Term '{term}' not found.\n\n**Available terms:** {available}")
+            await ctx.send(f"Term '{term}' not found.\n\n**Available terms:** {available}\n\nUse `!glossary` to see all terms.")
+
+    @commands.command(name="define", help="Define a trading term. Usage: !define support")
+    async def define_command(self, ctx, term: str = None):
+        """!define <term> - Alias for !glossary"""
+        await self.glossary_command(ctx, term)
 
     @commands.command(name="terms", help="List all available trading terms")
     async def terms_command(self, ctx):
-        """!terms - List all available trading terms"""
-        terms_list = "\n".join([f"- **{term}**" for term in TRADING_TERMS.keys()])
-        embed = discord.Embed(
-            title="Trading Terms",
-            description=f"Use `!define <term>` to learn more:\n\n{terms_list}",
-            color=discord.Color.gold()
-        )
-        await ctx.send(embed=embed)
+        """!terms - Alias for !glossary"""
+        await self.glossary_command(ctx, None)
 
     @commands.command(name="tip", help="Get a random trading tip")
     async def tip_command(self, ctx):

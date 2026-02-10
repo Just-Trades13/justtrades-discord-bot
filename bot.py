@@ -42,7 +42,7 @@ intents.message_content = True
 
 class JustTradesBot(commands.Bot):
     def __init__(self):
-        super().__init__(command_prefix="!", intents=intents)
+        super().__init__(command_prefix="!", intents=intents, help_command=None)
         self.ct = pytz.timezone('America/Chicago')
 
     async def setup_hook(self):
@@ -63,58 +63,92 @@ class JustTradesBot(commands.Bot):
         await self.change_presence(
             activity=discord.Activity(
                 type=discord.ActivityType.watching,
-                name="the markets | !bothelp"
+                name="the markets | !help"
             )
         )
 
 bot = JustTradesBot()
 
-@bot.command(name="bothelp")
-async def bot_help(ctx):
+@bot.command(name="help")
+async def help_command(ctx):
     """Show all available commands"""
     embed = discord.Embed(
-        title="JustTrades Bot Commands",
-        description="All-in-one trading Discord bot\n**All commands use `!` prefix**",
+        title="JustTrades Bot - Command Guide",
+        description="All commands use the `!` prefix. Type any command in any channel.",
         color=discord.Color.gold()
     )
 
     embed.add_field(
+        name="Education & Glossary",
+        value=(
+            "`!glossary` - Browse all trading terms\n"
+            "`!glossary <term>` - Look up a specific term\n"
+            "`!lesson` - Get today's trading lesson\n"
+            "`!lessonlist` - View all 30 lesson topics\n"
+            "`!tip` - Random trading tip"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
         name="Market Data",
-        value="`!market` - Live futures prices\n`!price <symbol>` - Any symbol price\n`!bias <direction> <notes>` - Post daily bias\n`!markethelp` - Market commands help",
+        value=(
+            "`!market` - Live futures prices (NQ, ES, YM, Gold, Oil)\n"
+            "`!price <symbol>` - Price for any stock/future\n"
+            "`!dailybias` - AI market bias with live SPY/VIX data\n"
+            "`!bias <bullish/bearish> <notes>` - Post manual bias"
+        ),
         inline=False
     )
 
     embed.add_field(
-        name="Analysis",
-        value="`!setup <symbol> <long/short> <entry> <stop> <target>` - Chart setup\n`!levels <symbol> <S1> <R1>` - S/R levels\n`!dailybias` - AI daily bias with live data",
+        name="Analysis & Setups",
+        value=(
+            "`!setup <symbol> <long/short> <entry> <stop> <target>` - Chart setup\n"
+            "`!levels <symbol> <S1> <R1>` - Support/resistance levels"
+        ),
         inline=False
     )
 
     embed.add_field(
-        name="Education",
-        value="`!define <term>` - Trading term definition\n`!terms` - List all terms\n`!tip` - Random trading tip\n`!lesson` - Today's educational lesson\n`!lessonlist` - All lesson topics",
+        name="Trade Alerts",
+        value=(
+            "`!alert <symbol> <BUY/SELL> <entry> <stop> <target>` - Trade alert\n"
+            "`!close <symbol> <WIN/LOSS> <pnl>` - Post trade result\n"
+            "`!update <symbol> <text>` - Trade update"
+        ),
         inline=False
     )
 
     embed.add_field(
-        name="Trade Relay",
-        value="`!alert <symbol> <BUY/SELL> <entry> <stop> <target>` - Trade alert\n`!close <symbol> <WIN/LOSS> <pnl>` - Trade result\n`!update <symbol> <text>` - Trade update\n`!tradehelp` - Trade commands help",
+        name="Economic Calendar",
+        value=(
+            "`!calendar` - Forex Factory USD calendar screenshot\n"
+            "`!calendarhere` - Post calendar in current channel"
+        ),
         inline=False
     )
 
     embed.add_field(
-        name="Calendar",
-        value="`!calendar` - Post Forex Factory USD calendar screenshot\n`!calendarhere` - Post calendar in current channel",
+        name="Bot Info",
+        value=(
+            "`!status` - Bot status and latency\n"
+            "`!channels` - View configured channels"
+        ),
         inline=False
     )
 
     embed.add_field(
-        name="Auto-Posting",
-        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Economic Calendar:** 6:00 AM CT (weekdays)\n**Daily Lesson:** 7:00 AM CT (weekdays)",
+        name="Auto-Posts (Weekdays)",
+        value=(
+            "**6:00 AM CT** - Economic Calendar (Forex Factory screenshot)\n"
+            "**7:00 AM CT** - Daily Trading Lesson\n"
+            "**8:30 AM CT** - Daily Market Bias (live data)"
+        ),
         inline=False
     )
 
-    embed.set_footer(text="JustTrades Bot | Railway Deployment | All ! prefix commands")
+    embed.set_footer(text="JustTrades Bot | Type !help anytime")
     await ctx.send(embed=embed)
 
 @bot.command(name="status")
