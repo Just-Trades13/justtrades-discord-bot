@@ -92,7 +92,7 @@ async def bot_help(ctx):
 
     embed.add_field(
         name="Education",
-        value="`!define <term>` - Trading term definition\n`!terms` - List all terms\n`!tip` - Random trading tip\n`!eduhelp` - Education commands help",
+        value="`!define <term>` - Trading term definition\n`!terms` - List all terms\n`!tip` - Random trading tip\n`!lesson` - Today's educational lesson\n`!lessonlist` - All lesson topics",
         inline=False
     )
 
@@ -110,7 +110,7 @@ async def bot_help(ctx):
 
     embed.add_field(
         name="Auto-Posting",
-        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Economic Calendar:** 6:00 AM CT (weekdays)",
+        value="**Daily Bias:** 8:30 AM CT (weekdays)\n**Economic Calendar:** 6:00 AM CT (weekdays)\n**Daily Lesson:** 7:00 AM CT (weekdays)",
         inline=False
     )
 
